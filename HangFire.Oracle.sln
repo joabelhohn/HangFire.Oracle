@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Oracle", "HangFire.Oracle\Hangfire.Oracle.csproj", "{25908FC4-7FCC-4E08-AEC4-B67107460C35}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hangfire.Oracle.Tests", "Hangfire.Oracle.Tests\Hangfire.Oracle.Tests.csproj", "{6DFFA275-C483-4501-823A-741AC9EC0846}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{25908FC4-7FCC-4E08-AEC4-B67107460C35}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25908FC4-7FCC-4E08-AEC4-B67107460C35}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25908FC4-7FCC-4E08-AEC4-B67107460C35}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25908FC4-7FCC-4E08-AEC4-B67107460C35}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DFFA275-C483-4501-823A-741AC9EC0846}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DFFA275-C483-4501-823A-741AC9EC0846}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DFFA275-C483-4501-823A-741AC9EC0846}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DFFA275-C483-4501-823A-741AC9EC0846}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
