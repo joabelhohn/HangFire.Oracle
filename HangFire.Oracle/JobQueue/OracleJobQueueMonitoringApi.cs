@@ -41,17 +41,17 @@ namespace Hangfire.Oracle.JobQueue
         public IEnumerable<int> GetEnqueuedJobIds(string queue, int @from, int perPage)
         {
             string sqlQuery = @"
-select jq.JobId
+Select x.JobId from (select jq.JobId, rownum R
 from HANGFIRE_JOBQUEUE jq
 where jq.Queue = :queue
-and rownum between :start and :end
-order by jq.Id
+order by jq.Id) x
+Where x.R Between :startValue and :endValue
 ";
 
             return _storage.UseConnection(connection =>
                 connection.Query<int>(
                     sqlQuery,
-                    new {queue = queue, start = @from + 1, end = @from + perPage}));
+                    new {queue = queue, startValue = @from + 1, endValue = @from + perPage}));
         }
 
         public IEnumerable<int> GetFetchedJobIds(string queue, int @from, int perPage)

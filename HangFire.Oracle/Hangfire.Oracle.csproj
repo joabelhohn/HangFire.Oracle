@@ -80,7 +80,7 @@
     <Compile Include="JobQueue\OracleJobQueueMonitoringApi.cs" />
     <Compile Include="JobQueue\OracleJobQueueProvider.cs" />
     <Compile Include="JobQueue\PersistentJobQueueProviderCollection.cs" />
-    <Compile Include="Monitoring\MySqlMonitoringApi.cs" />
+    <Compile Include="Monitoring\OracleMonitoringApi.cs" />
     <Compile Include="OracleDistributedLock.cs" />
     <Compile Include="OracleDistributedLockException.cs" />
     <Compile Include="OracleObjectsInstaller.cs" />
@@ -89,6 +89,7 @@
     <Compile Include="OracleStorageOptions.cs" />
     <Compile Include="OracleWriteOnlyTransaction.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utils\OracleDynamicParameters.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Install.sql" />

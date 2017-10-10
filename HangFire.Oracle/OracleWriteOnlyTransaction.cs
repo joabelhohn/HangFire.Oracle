@@ -244,10 +244,12 @@ end;",
             Logger.TraceFormat("TrimList key={0} from={1} to={2}", key, keepStartingFrom, keepEndingAt);
 
             AcquireListLock();
-            //TODO
+            
             QueueCommand(x => x.Execute(
-                @"delete from HANGFIRE_LIST where Key = :key and rownum not between :start and :end",
-                new { key = key, start = keepStartingFrom + 1, end = keepEndingAt + 1 }));
+                @"delete from HANGFIRE_LIST where ID in (
+select X.Id from (select Id, rownum R from HANGFIRE_LIST where KEY = :key) X
+where X.R not between :startValue and :endValue)",
+                new { key = key, startValeu = keepStartingFrom + 1, endValeu = keepEndingAt + 1 }));
         }
 
         public override void PersistHash(string key)
@@ -257,7 +259,7 @@ end;",
             if (key == null) throw new ArgumentNullException("key");
 
             AcquireHashLock();
-            //TODO
+
             QueueCommand(x => 
                 x.Execute(
                     "update HANGFIRE_Hash set ExpireAt is null where Key = :key", new { key = key }));
@@ -270,7 +272,7 @@ end;",
             if (key == null) throw new ArgumentNullException("key");
 
             AcquireSetLock();
-            //TODO
+
             QueueCommand(x => 
                 x.Execute(
                     "update HANGFIRE_SET set ExpireAt is null where Key = :key", new { key = key }));

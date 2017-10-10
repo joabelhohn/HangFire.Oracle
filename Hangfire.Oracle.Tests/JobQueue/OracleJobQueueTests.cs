@@ -103,7 +103,7 @@ namespace Hangfire.Oracle.Tests.JobQueue
         [Fact, CleanDatabase]
         public void Dequeue_ShouldFetchAJob_FromTheSpecifiedQueue()
         {
-            const string arrangeSql = @"insert into HANGFIRE_JOBQUEUE (JobId, Queue) values (:jobId, :queue) returning ID into :id;";
+            const string arrangeSql = @"insert into HANGFIRE_JOBQUEUE (JobId, Queue) values (:jobId, :queue) returning ID into :id";
 
             // Arrange
             _storage.UseConnection(connection =>
@@ -146,7 +146,8 @@ end;";
             {
                 connection.Execute(
                     arrangeSql,
-                    new { invocationData = "", arguments = "", queue = "default" });
+                    new { invocationData = " ", arguments = " ", queue = "default" });
+
                 var queue = CreateJobQueue(connection);
 
                 // Act
@@ -184,8 +185,8 @@ end;";
                     {
                         queue = "default",
                         fetchedAt = DateTime.UtcNow.AddDays(-1),
-                        invocationData = "",
-                        arguments = ""
+                        invocationData = " ",
+                        arguments = " "
                     });
                 var queue = CreateJobQueue(connection);
 
@@ -222,8 +223,8 @@ end;");
                     arrangeSql,
                     new[]
                     {
-                        new { queue = "default", invocationData = "", arguments = "" },
-                        new { queue = "default", invocationData = "", arguments = "" }
+                        new { queue = "default", invocationData = " ", arguments = " " },
+                        new { queue = "default", invocationData = " ", arguments = " " }
                     });
                 var queue = CreateJobQueue(connection);
 
@@ -261,7 +262,7 @@ end;");
 
                 connection.Execute(
                     arrangeSql,
-                    new { queue = "critical", invocationData = "", arguments = "" });
+                    new { queue = "critical", invocationData = " ", arguments = " " });
 
                 Assert.Throws<OperationCanceledException>(
                     () => queue.Dequeue(
@@ -273,7 +274,8 @@ end;");
         [Fact, CleanDatabase]
         public void Dequeue_ShouldFetchJobs_FromMultipleQueues()
         {
-            const string arrangeSql = @"declare
+            const string arrangeSql = @"
+declare
     jobid number(11);    
 begin 
     insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt) values (:invocationData, :arguments, sysdate) returning ID into jobid;
@@ -286,8 +288,8 @@ end;";
                     arrangeSql,
                     new[]
                     {
-                        new { queue = "default", invocationData = "", arguments = "" },
-                        new { queue = "critical", invocationData = "", arguments = "" }
+                        new { queue = "default", invocationData = " ", arguments = " " },
+                        new { queue = "critical", invocationData = " ", arguments = " " }
                     });
 
                 var queue = CreateJobQueue(connection);
@@ -319,7 +321,7 @@ end;";
 
                 queue.Enqueue(connection, "default", "1");
 
-                var record = connection.Query("select * from HANGFIRE_JOBQUEUE").Single();
+                var record = connection.Query("select jq.ID \"Id\", jq.JOBID \"JobId\", jq.QUEUE \"Queue\", jq.FETCHEDAT \"FetchedAt\", jq.FETCHTOKEN \"FetchToken\" from HANGFIRE_JOBQUEUE jq").Single();
                 Assert.Equal("1", record.JobId.ToString());
                 Assert.Equal("default", record.Queue);
                 Assert.Null(record.FetchedAt);

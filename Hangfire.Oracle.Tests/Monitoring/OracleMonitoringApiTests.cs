@@ -62,7 +62,7 @@ namespace Hangfire.Oracle.Tests.Monitoring
             _storage.UseConnection(connection =>
             {
                 connection.Execute(@"
-insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt, StateName) values (' ', ' ', sysdate,'Enqueued');");
+insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt, StateName) values (' ', ' ', sysdate,'Enqueued')");
 
                 result = _sut.GetStatistics();
             });
@@ -181,7 +181,7 @@ end;");
         {
             const int expectedStatsDeletedCount = 7;
 
-            StatisticsDto result = null;
+             StatisticsDto result = null;
             _storage.UseConnection(connection =>
             {
                 connection.Execute(@"begin
@@ -204,7 +204,7 @@ end;");
             StatisticsDto result = null;
             _storage.UseConnection(connection =>
             {
-                connection.Execute(@"insert into HANGFIRE_SET (ID, KEY, VALUE, SCORE) values (1, 'recurring-jobs', 'test', 0);");
+                connection.Execute(@"insert into HANGFIRE_SET (ID, KEY, VALUE, SCORE) values (1, 'recurring-jobs', 'test', 0)");
 
                 result = _sut.GetStatistics();
             });

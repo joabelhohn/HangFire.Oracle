@@ -198,9 +198,9 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_COUNTER").Single();
                 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal(1, record.Value);
-                Assert.Equal((DateTime?)null, record.ExpireAt);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal(1, record.VALUE);
+                Assert.Equal((DateTime?)null, record.EXPIREAT);
             });
         }
 
@@ -213,11 +213,11 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_COUNTER").Single();
 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal(1, record.Value);
-                Assert.NotNull(record.ExpireAt);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal(1, record.VALEU);
+                Assert.NotNull(record.EXPIREAT);
 
-                var expireAt = (DateTime) record.ExpireAt;
+                var expireAt = (DateTime) record.EXPIREAT;
 
                 Assert.True(DateTime.UtcNow.AddHours(23) < expireAt);
                 Assert.True(expireAt < DateTime.UtcNow.AddHours(25));
@@ -250,9 +250,9 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_COUNTER").Single();
 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal(-1, record.Value);
-                Assert.Equal((DateTime?)null, record.ExpireAt);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal(-1, record.VALUE);
+                Assert.Equal((DateTime?)null, record.EXPIREAT);
             });
         }
 
@@ -265,11 +265,11 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_COUNTER").Single();
 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal(-1, record.Value);
-                Assert.NotNull(record.ExpireAt);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal(-1, record.VALUE);
+                Assert.NotNull(record.EXPIREAT);
 
-                var expireAt = (DateTime)record.ExpireAt;
+                var expireAt = (DateTime)record.EXPIREAT;
 
                 Assert.True(DateTime.UtcNow.AddHours(23) < expireAt);
                 Assert.True(expireAt < DateTime.UtcNow.AddHours(25));
@@ -298,13 +298,15 @@ namespace Hangfire.Oracle.Tests
         {
             UseConnection(sql =>
             {
-                Commit(sql, x => x.AddToSet("my-key", "my-value"));
+                Commit(sql, x => 
+                    x.AddToSet("my-key", "my-value")
+                );
 
                 var record = sql.Query("select * from HANGFIRE_SET").Single();
 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal("my-value", record.Value);
-                Assert.Equal(0.0, record.Score, 2);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal("my-value", record.VALUE);
+                Assert.Equal(0.0, record.SCORE, 2);
             });
         }
 
@@ -351,9 +353,9 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_SET").Single();
 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal("my-value", record.Value);
-                Assert.Equal(3.2, record.Score, 3);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal("my-value", record.VALUE);
+                Assert.Equal(3.2, record.SCORE, 3);
             });
         }
 
@@ -434,8 +436,8 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_LIST").Single();
 
-                Assert.Equal("my-key", record.Key);
-                Assert.Equal("my-value", record.Value);
+                Assert.Equal("my-key", record.KEY);
+                Assert.Equal("my-value", record.VALUE);
             });
         }
 
@@ -525,8 +527,8 @@ namespace Hangfire.Oracle.Tests
                 var records = sql.Query("select * from HANGFIRE_List").ToArray();
 
                 Assert.Equal(2, records.Length);
-                Assert.Equal("1", records[0].Value);
-                Assert.Equal("2", records[1].Value);
+                Assert.Equal("1", records[0].VALUE);
+                Assert.Equal("2", records[1].VALUE);
             });
         }
 
@@ -638,7 +640,7 @@ namespace Hangfire.Oracle.Tests
                 var result = sql.Query(
                     "select * from HANGFIRE_Hash where Key = :key",
                     new { key = "some-hash" })
-                    .ToDictionary(x => (string)x.Field, x => (string)x.Value);
+                    .ToDictionary(x => (string)x.FIELD, x => (string)x.VALUE);
 
                 Assert.Equal("Value1", result["Key1"]);
                 Assert.Equal("Value2", result["Key2"]);
@@ -741,7 +743,7 @@ insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)";
                 Commit(sql, x => x.RemoveSet("set-1"));
 
                 var record = sql.Query("select * from HANGFIRE_SET").Single();
-                Assert.Equal("set-2", record.Key);
+                Assert.Equal("set-2", record.KEY);
             });
         }
 
@@ -775,7 +777,7 @@ insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)";
                 Commit(sql, x => x.ExpireHash("hash-1", TimeSpan.FromMinutes(60)));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_HASH").ToDictionary(x => (string)x.Key, x => (DateTime?)x.ExpireAt);
+                var records = sql.Query("select * from HANGFIRE_HASH").ToDictionary(x => (string)x.KEY, x => (DateTime?)x.EXPIREAT);
                 Assert.True(DateTime.UtcNow.AddMinutes(59) < records["hash-1"]);
                 Assert.True(records["hash-1"] < DateTime.UtcNow.AddMinutes(61));
                 Assert.Null(records["hash-2"]);
@@ -812,7 +814,7 @@ insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)";
                 Commit(sql, x => x.ExpireSet("set-1", TimeSpan.FromMinutes(60)));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_SET").ToDictionary(x => (string)x.Key, x => (DateTime?)x.ExpireAt);
+                var records = sql.Query("select * from HANGFIRE_SET").ToDictionary(x => (string)x.KEY, x => (DateTime?)x.EXPIREAT);
                 Assert.True(DateTime.UtcNow.AddMinutes(59) < records["set-1"]);
                 Assert.True(records["set-1"] < DateTime.UtcNow.AddMinutes(61));
                 Assert.Null(records["set-2"]);
@@ -849,7 +851,7 @@ insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)";
                 Commit(sql, x => x.ExpireList("list-1", TimeSpan.FromMinutes(60)));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_LIST").ToDictionary(x => (string)x.Key, x => (DateTime?)x.ExpireAt);
+                var records = sql.Query("select * from HANGFIRE_LIST").ToDictionary(x => (string)x.KET, x => (DateTime?)x.EXPIREAT);
                 Assert.True(DateTime.UtcNow.AddMinutes(59) < records["list-1"]);
                 Assert.True(records["list-1"] < DateTime.UtcNow.AddMinutes(61));
                 Assert.Null(records["list-2"]);
@@ -888,7 +890,7 @@ values (:key, :field, :expireAt)";
                 Commit(sql, x => x.PersistHash("hash-1"));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_HASH").ToDictionary(x => (string)x.Key, x => (DateTime?)x.ExpireAt);
+                var records = sql.Query("select * from HANGFIRE_HASH").ToDictionary(x => (string)x.KET, x => (DateTime?)x.EXPIREAT);
                 Assert.Null(records["hash-1"]);
                 Assert.NotNull(records["hash-2"]);
             });
@@ -925,7 +927,7 @@ insert into HANGFIRE_SET (KEY, VALUE, ExpireAt, Score) values (:key, :value, :ex
                 Commit(sql, x => x.PersistSet("set-1"));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_SET").ToDictionary(x => (string)x.Key, x => (DateTime?)x.ExpireAt);
+                var records = sql.Query("select * from HANGFIRE_SET").ToDictionary(x => (string)x.KEY, x => (DateTime?)x.EXPIREAT);
                 Assert.Null(records["set-1"]);
                 Assert.NotNull(records["set-2"]);
             });
@@ -962,7 +964,7 @@ insert into HANGFIRE_List (KEY, ExpireAt) values (:key, :expireAt)";
                 Commit(sql, x => x.PersistList("list-1"));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_List").ToDictionary(x => (string)x.Key, x => (DateTime?)x.ExpireAt);
+                var records = sql.Query("select * from HANGFIRE_List").ToDictionary(x => (string)x.KEY, x => (DateTime?)x.EXPIREAT);
                 Assert.Null(records["list-1"]);
                 Assert.NotNull(records["list-2"]);
             });

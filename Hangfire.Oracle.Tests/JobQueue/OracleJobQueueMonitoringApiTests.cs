@@ -39,7 +39,7 @@ namespace Hangfire.Oracle.Tests.JobQueue
             _storage.UseConnection(connection =>
             {
                 connection.Execute(
-                    "insert into HANGFIRE_JOBQUEUE (JobId, Queue) values (1, :queue);", 
+                    "insert into HANGFIRE_JOBQUEUE (JobId, Queue) values (1, :queue)", 
                     new { queue = _queue });
 
                 result = _sut.GetEnqueuedAndFetchedCount(_queue);
@@ -69,7 +69,7 @@ namespace Hangfire.Oracle.Tests.JobQueue
                 {
                     connection.Execute(
                         "insert into HANGFIRE_JOBQUEUE (JobId, Queue) " +
-                        "values (:jobId, :queue);", new {jobId = i, queue = _queue});
+                        "values (:jobId, :queue)", new {jobId = i, queue = _queue});
                 }
 
                 result = _sut.GetEnqueuedJobIds(_queue, 3, 2).ToArray();

@@ -44,17 +44,20 @@ namespace Hangfire.Oracle
 
             return _storage.UseConnection(connection =>
             {
-                var jobId = connection.Query<int>(
+                var param = new DynamicParameters();
+                param.Add("invocationData", JobHelper.ToJson(invocationData), direction: System.Data.ParameterDirection.Input);
+                param.Add("arguments", invocationData.Arguments, direction: System.Data.ParameterDirection.Input);
+                param.Add("createdAt", createdAt, direction: System.Data.ParameterDirection.Input);
+                param.Add("expireAt", createdAt.Add(expireIn), direction: System.Data.ParameterDirection.Input);
+                param.Add("joiId", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Input);
+
+                connection.Execute(
                     "insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt, ExpireAt) " +
-                    "values (@invocationData, @arguments, @createdAt, :expireAt); " +
-                    "select last_insert_id();",
-                    new
-                    {
-                        invocationData = JobHelper.ToJson(invocationData),
-                        arguments = invocationData.Arguments,
-                        createdAt = createdAt,
-                        expireAt = createdAt.Add(expireIn)
-                    }).Single().ToString();
+                    "values (:invocationData, :arguments, :createdAt, :expireAt) returning ID into :jobId",
+                    param);
+
+                var jobId = param.Get<int>("jobid").ToString();
+                //string jobId = id.ToString();
 
                 if (parameters.Count > 0)
                 {
@@ -417,10 +420,11 @@ where Key = :key) as s";
             if (key == null) throw new ArgumentNullException("key");
 
             string query = @"
-select Value from HANGFIRE_List
+Select x.VALUE from (select VALUE, rownum R from HANGFIRE_List
 where Key = :key
-and rownum between :startingFrom and :endingAt
-order by Id desc";
+order by Id desc) X
+where X.R between :startingFrom and :endingAt
+";
 
             return
                 _storage

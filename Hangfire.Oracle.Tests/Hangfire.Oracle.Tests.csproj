@@ -36,11 +36,11 @@
   <ItemGroup>
     <Compile Include="CountersAggregatorTests.cs" />
     <Compile Include="ExpirationManagerTests.cs" />
-    <Compile Include="JobQueue\MySqlFetchedJobTests.cs" />
-    <Compile Include="JobQueue\MySqlJobQueueMonitoringApiTests.cs" />
-    <Compile Include="JobQueue\MySqlJobQueueTests.cs" />
+    <Compile Include="JobQueue\OracleFetchedJobTests.cs" />
+    <Compile Include="JobQueue\OracleJobQueueMonitoringApiTests.cs" />
+    <Compile Include="JobQueue\OracleJobQueueTests.cs" />
     <Compile Include="JobQueue\PersistentJobQueueProviderCollectionTests.cs" />
-    <Compile Include="Monitoring\MySqlMonitoringApiTests.cs" />
+    <Compile Include="Monitoring\OracleMonitoringApiTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="OracleSqlStorageTests.cs">
       <SubType>Code</SubType>

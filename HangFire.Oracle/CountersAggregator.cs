@@ -58,24 +58,35 @@ namespace Hangfire.Oracle
         {
             //TODO
             return @"
-SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
-START TRANSACTION;
-
-INSERT INTO HANGFIRE_AGGREGATEDCOUNTER (KEY, VALUE, ExpireAt)
-    SELECT Key, SUM(Value) as Value, MAX(ExpireAt) AS ExpireAt 
-    FROM (
+begin
+    MERGE INTO HANGFIRE_AGGREGATEDCOUNTER T1
+    USING (
+        SELECT tmp.KEY, SUM(tmp.VALUE) as VALUE, MAX(ExpireAt) AS ExpireAt  
+        FROM (
+            SELECT KEY, VALUE, ExpireAt
+            FROM HANGFIRE_COUNTER T2
+            WHERE rownum <= :count) tmp
+            GROUP BY tmp.KEY
+    ) T3
+        ON (T1.KEY = T3.KEY) 
+    WHEN MATCHED THEN UPDATE
+        SET T1.VALUE = T3.VALUE, T1.ExpireAt = T3.ExpireAt;
+        
+    if sql%rowcount = 0 then
+        INSERT INTO HANGFIRE_AGGREGATEDCOUNTER (KEY, VALUE, ExpireAt)
+    	SELECT KEY, SUM(VALUE) as VALUE, MAX(ExpireAt) AS ExpireAt 
+    	FROM (
             SELECT KEY, VALUE, ExpireAt
             FROM HANGFIRE_COUNTER
-            LIMIT @count) tmp
-	GROUP BY Key
-        ON DUPLICATE KEY UPDATE 
-            Value = Value + VALUES(Value),
-            ExpireAt = GREATEST(ExpireAt,VALUES(ExpireAt));
+            where rownum <= :count) tmp
+		GROUP BY KEY;
+	end if;
+    
+	DELETE FROM HANGFIRE_COUNTER WHERE rownum <= :count;
 
-DELETE FROM HANGFIRE_COUNTER
-LIMIT @count;
-
-COMMIT;";
+	COMMIT;
+end;
+";
         }
     }
 }

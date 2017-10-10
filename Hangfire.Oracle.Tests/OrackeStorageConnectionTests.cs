@@ -180,7 +180,7 @@ namespace Hangfire.Oracle.Tests
         [Fact, CleanDatabase]
         public void GetJobData_ReturnsResult_WhenJobExists()
         {
-            const string arrangeSql = @"insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (:invocationData, :arguments, :stateName, sysdate) returning ID into :jobid;";
+            const string arrangeSql = @"insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (:invocationData, :arguments, :stateName, sysdate) returning ID into :jobid";
 
             UseConnections((sql, connection) =>
             {
@@ -306,7 +306,7 @@ end;";
         [Fact, CleanDatabase]
         public void GetJobData_ReturnsJobLoadException_IfThereWasADeserializationException()
         {
-            const string arrangeSql = @"insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (:invocationData, :arguments, :stateName, sysdate) returning ID into :jobid;";
+            const string arrangeSql = @"insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (:invocationData, :arguments, :stateName, sysdate) returning ID into :jobid";
 
             UseConnections((sql, connection) =>
             {
@@ -782,7 +782,7 @@ end;";
         [Fact, CleanDatabase]
         public void GetAllEntriesFromHash_ReturnsAllKeysAndTheirValues()
         {
-            const string arrangeSql = @"insert into HANGFIRE_HASH (KEY, FIELD, VALUE) values (:Key, :field, :Value);";
+            const string arrangeSql = @"insert into HANGFIRE_HASH (KEY, FIELD, VALUE) values (:Key, :field, :Value)";
 
             UseConnections((sql, connection) =>
             {

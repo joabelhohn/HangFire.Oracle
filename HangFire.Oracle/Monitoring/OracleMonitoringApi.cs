@@ -11,6 +11,7 @@ using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
 using Oracle.ManagedDataAccess.Client;
 using System.Transactions;
+using Hangfire.Oracle.Utils;
 
 namespace Hangfire.Oracle.Monitoring
 {
@@ -87,11 +88,20 @@ namespace Hangfire.Oracle.Monitoring
             {
 
                 string sql = @"
-select * from HANGFIRE_JOB where ID = :id;
-select * from HANGFIRE_JOBPARAMETER where JOBID = @:d;
-select * from HANGFIRE_STATE where JOBID = :id order by ID desc;";
+BEGIN 
+    OPEN :rslt1 FOR select * from HANGFIRE_JOB where ID = :id;
+    OPEN :rslt2 FOR select * from HANGFIRE_JOBPARAMETER where JOBID = :id;
+    OPEN :rslt3 FOR select * from HANGFIRE_STATE where JOBID = :id order by ID desc;
+END;
+";
+                
+                var param = new OracleDynamicParameters();
+                param.Add(":rslt1", dbType: OracleDbType.RefCursor, direction: System.Data.ParameterDirection.Output);
+                param.Add(":rslt2", dbType: OracleDbType.RefCursor, direction: System.Data.ParameterDirection.Output);
+                param.Add(":rslt3", dbType: OracleDbType.RefCursor, direction: System.Data.ParameterDirection.Output);
+                param.Add(":id", jobId , dbType: OracleDbType.Int32, direction: System.Data.ParameterDirection.Input);
 
-                using (var multi = connection.QueryMultiple(sql, new { id = jobId }))
+                using (var multi = connection.QueryMultiple(sql, param))
                 {
                     var job = multi.Read<SqlJob>().SingleOrDefault();
                     if (job == null) return null;
@@ -127,11 +137,11 @@ select * from HANGFIRE_STATE where JOBID = :id order by ID desc;";
         {
             const string jobQuery = "select count(Id) from HANGFIRE_JOB where StateName = :stateName";
             const string succeededQuery = @"
-select sum(s.Value) from (
+select sum(x.VALUE) from (
     select sum(Value) as Value from HANGFIRE_COUNTER where Key = :key
     union all
-    select Value from HANGFIRE_AGGREGATEDCOUNTER where Key = :key
-) as s;";
+    select sum(Value) as Value from HANGFIRE_AGGREGATEDCOUNTER where Key = :key
+) X";
 
             var statistics = 
                 UseConnection(connection => 
@@ -141,11 +151,11 @@ select sum(s.Value) from (
                         Failed = connection.ExecuteScalar<int>(jobQuery, new {stateName = "Failed"}),
                         Processing = connection.ExecuteScalar<int>(jobQuery, new {stateName = "Processing"}),
                         Scheduled = connection.ExecuteScalar<int>(jobQuery, new {stateName = "Scheduled"}),
-                        Servers = connection.ExecuteScalar<int>("select count(Id) from Server"),
+                        Servers = connection.ExecuteScalar<int>("select count(Id) from HANGFIRE_SERVER"),
                         Succeeded = connection.ExecuteScalar<int>(succeededQuery, new {key = "stats:succeeded"}),
                         Deleted = connection.ExecuteScalar<int>(succeededQuery, new {key = "stats:deleted"}),
                         Recurring =
-                            connection.ExecuteScalar<int>("select count(*) from `Set` where Key = 'recurring-jobs'")
+                            connection.ExecuteScalar<int>("select count(*) from HANGFIRE_SET where Key = 'recurring-jobs'")
                     });
 
             statistics.Queues = _storage.QueueProviders
@@ -361,12 +371,12 @@ select sum(s.Value) from (
   left join HANGFIRE_STATE s on j.StateId = s.Id
   where j.StateName = :stateName
   order by j.Id desc
-) as j where j.rank between :start and :end ";
+) as j where j.rank between :startValue and :endValue ";
 
             var jobs = 
                 connection.Query<SqlJob>(
                     jobsSql,
-                    new { stateName = stateName, start = @from + 1, end = @from + count })
+                    new { stateName = stateName, startValue = @from + 1, endValue = @from + count })
                     .ToList();
 
             return DeserializeJobs(jobs, selector);
