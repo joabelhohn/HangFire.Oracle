@@ -64,7 +64,7 @@ namespace Hangfire.Oracle.Tests
         [Fact, CleanDatabase]
         public void PersistJob_ClearsTheJobExpirationData()
         {
-            const string arrangeSql = @"insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt) values (' ', ' ', sysdate) returning ID into :id";
+            const string arrangeSql = @"insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt, ExpireAt) values (' ', ' ', sysdate, sysdate) returning ID into :id";
 
             UseConnection(sql =>
             {
@@ -121,7 +121,7 @@ namespace Hangfire.Oracle.Tests
                 Assert.Null(anotherJob.StateName);
                 Assert.Null(anotherJob.StateId);
 
-                var jobState = sql.Query("select * from HANGFIRE_STATE").Single();
+                var jobState = sql.Query("select ID \"Id\", JOBID \"JobId\", NAME \"Name\", REASON \"Reason\", CREATEDAT \"CreatedAt\", DATA \"Data\"  from HANGFIRE_STATE").Single();
                 Assert.Equal((string)jobId, jobState.JobId.ToString());
                 Assert.Equal("State", jobState.Name);
                 Assert.Equal("Reason", jobState.Reason);
@@ -155,7 +155,7 @@ namespace Hangfire.Oracle.Tests
                 Assert.Null(job.StateName);
                 Assert.Null(job.StateId);
 
-                var jobState = sql.Query("select * from HANGFIRE_STATE").Single();
+                var jobState = sql.Query("select ID \"Id\", JOBID \"JobId\", NAME \"Name\", REASON \"Reason\", CREATEDAT \"CreatedAt\", DATA \"Data\"  from HANGFIRE_STATE").Single();
                 Assert.Equal(jobId, jobState.JobId.ToString());
                 Assert.Equal("State", jobState.Name);
                 Assert.Equal("Reason", jobState.Reason);
@@ -185,7 +185,7 @@ namespace Hangfire.Oracle.Tests
         private static dynamic GetTestJob(IDbConnection connection, string jobId)
         {
             return connection
-                .Query("select * from HANGFIRE_JOB where Id = :id", new { id = jobId })
+                .Query("select ID \"Id\", STATEID \"StateId\", STATENAME \"StateName\", INVOCATIONDATA \"InvocationData\", ARGUMENTS \"Arguments\", CREATEDAT \"CreatedAt\", EXPIREAT \"ExpireAt\"  from HANGFIRE_JOB where Id = :id", new { id = jobId })
                 .Single();
         }
 
@@ -214,7 +214,7 @@ namespace Hangfire.Oracle.Tests
                 var record = sql.Query("select * from HANGFIRE_COUNTER").Single();
 
                 Assert.Equal("my-key", record.KEY);
-                Assert.Equal(1, record.VALEU);
+                Assert.Equal(1, (int)record.VALUE);
                 Assert.NotNull(record.EXPIREAT);
 
                 var expireAt = (DateTime) record.EXPIREAT;
@@ -306,7 +306,7 @@ namespace Hangfire.Oracle.Tests
 
                 Assert.Equal("my-key", record.KEY);
                 Assert.Equal("my-value", record.VALUE);
-                Assert.Equal(0.0, record.SCORE, 2);
+                Assert.Equal(0.0, (double)record.SCORE, 2);
             });
         }
 
@@ -355,7 +355,7 @@ namespace Hangfire.Oracle.Tests
 
                 Assert.Equal("my-key", record.KEY);
                 Assert.Equal("my-value", record.VALUE);
-                Assert.Equal(3.2, record.SCORE, 3);
+                Assert.Equal(3.2, (double)record.SCORE, 3);
             });
         }
 
@@ -372,7 +372,7 @@ namespace Hangfire.Oracle.Tests
 
                 var record = sql.Query("select * from HANGFIRE_SET").Single();
 
-                Assert.Equal(3.2, record.Score, 3);
+                Assert.Equal(3.2, (double)record.SCORE, 3);
             });
         }
 
@@ -851,7 +851,7 @@ insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)";
                 Commit(sql, x => x.ExpireList("list-1", TimeSpan.FromMinutes(60)));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_LIST").ToDictionary(x => (string)x.KET, x => (DateTime?)x.EXPIREAT);
+                var records = sql.Query("select * from HANGFIRE_LIST").ToDictionary(x => (string)x.KEY, x => (DateTime?)x.EXPIREAT);
                 Assert.True(DateTime.UtcNow.AddMinutes(59) < records["list-1"]);
                 Assert.True(records["list-1"] < DateTime.UtcNow.AddMinutes(61));
                 Assert.Null(records["list-2"]);
@@ -890,7 +890,7 @@ values (:key, :field, :expireAt)";
                 Commit(sql, x => x.PersistHash("hash-1"));
 
                 // Assert
-                var records = sql.Query("select * from HANGFIRE_HASH").ToDictionary(x => (string)x.KET, x => (DateTime?)x.EXPIREAT);
+                var records = sql.Query("select * from HANGFIRE_HASH").ToDictionary(x => (string)x.KEY, x => (DateTime?)x.EXPIREAT);
                 Assert.Null(records["hash-1"]);
                 Assert.NotNull(records["hash-2"]);
             });

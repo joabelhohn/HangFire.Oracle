@@ -193,10 +193,11 @@ namespace Hangfire.Oracle
         }
         private TransactionScope CreateTransaction(IsolationLevel? isolationLevel)
         {
-            return isolationLevel != null
+            var trnScope = isolationLevel != null
                 ? new TransactionScope(TransactionScopeOption.Required,
                     new TransactionOptions { IsolationLevel = isolationLevel.Value, Timeout = _options.TransactionTimeout })
                 : new TransactionScope();
+            return trnScope;
         }
 
         internal void UseConnection([InstantHandle] Action<OracleConnection> action)

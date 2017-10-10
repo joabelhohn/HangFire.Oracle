@@ -71,8 +71,7 @@ namespace Hangfire.Oracle.JobQueue
 
             //todo: unit test
             _connection.Execute(
-                "update HANGFIRE_JOBQUEUE set FetchedAt is null " +
-                "where Id = :id",
+                "update HANGFIRE_JOBQUEUE set FetchedAt = null where Id = :id",
                 new
                 {
                     id = _id

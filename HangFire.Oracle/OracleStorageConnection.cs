@@ -49,14 +49,14 @@ namespace Hangfire.Oracle
                 param.Add("arguments", invocationData.Arguments, direction: System.Data.ParameterDirection.Input);
                 param.Add("createdAt", createdAt, direction: System.Data.ParameterDirection.Input);
                 param.Add("expireAt", createdAt.Add(expireIn), direction: System.Data.ParameterDirection.Input);
-                param.Add("joiId", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Input);
+                param.Add("jobId", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Output);
 
                 connection.Execute(
                     "insert into HANGFIRE_JOB (InvocationData, Arguments, CreatedAt, ExpireAt) " +
                     "values (:invocationData, :arguments, :createdAt, :expireAt) returning ID into :jobId",
                     param);
 
-                var jobId = param.Get<int>("jobid").ToString();
+                var jobId = param.Get<int>("jobId").ToString();
                 //string jobId = id.ToString();
 
                 if (parameters.Count > 0)
@@ -74,7 +74,7 @@ namespace Hangfire.Oracle
                     }
 
                     connection.Execute(
-                        "insert into HANGFIRE_JOBParameter (JobId, Name, Value) values (:jobId, :name, :value)", 
+                        "insert into HANGFIRE_JOBParameter (JobId, Name, Value) values (:jobId, :name, :value)",
                         parameterArray);
                 }
 
@@ -106,14 +106,17 @@ namespace Hangfire.Oracle
         {
             if (id == null) throw new ArgumentNullException("id");
             if (name == null) throw new ArgumentNullException("name");
-
+            var sql = @"
+begin
+	update HANGFIRE_JOBParameter set VALUE = :value where JobId = :jobId and Name = :name;
+	
+	if (sql%rowcount = 0) then
+		insert into HANGFIRE_JOBParameter (JobId, Name, Value) values (:jobId, :name, :value);
+	end if;
+end;";
             _storage.UseConnection(connection =>
             {
-                connection.Execute(
-                    "insert into HANGFIRE_JOBParameter (JobId, Name, Value) " +
-                    "value (:jobId, :name, :value) " +
-                    "on duplicate key update Value = :value ",
-                    new { jobId = id, name, value });
+                connection.Execute(sql, new { jobId = id, name, value });
             });
         }
 
@@ -122,12 +125,12 @@ namespace Hangfire.Oracle
             if (id == null) throw new ArgumentNullException("id");
             if (name == null) throw new ArgumentNullException("name");
 
-            return _storage.UseConnection(connection => 
+            return _storage.UseConnection(connection =>
                 connection.Query<string>(
                     "select Value " +
                     "from HANGFIRE_JOBParameter " +
                     "where JobId = :id and Name = :name",
-                    new {id = id, name = name}).SingleOrDefault());
+                    new { id = id, name = name }).SingleOrDefault());
         }
 
         public override JobData GetJobData(string jobId)
@@ -136,13 +139,13 @@ namespace Hangfire.Oracle
 
             return _storage.UseConnection(connection =>
             {
-                var jobData = 
+                var jobData =
                     connection
                         .Query<SqlJob>(
                             "select InvocationData, StateName, Arguments, CreatedAt " +
                             "from HANGFIRE_JOB " +
-                            "where Id = :id", 
-                            new {id = jobId})
+                            "where Id = :id",
+                            new { id = jobId })
                         .SingleOrDefault();
 
                 if (jobData == null) return null;
@@ -178,11 +181,11 @@ namespace Hangfire.Oracle
 
             return _storage.UseConnection(connection =>
             {
-                var sqlState = 
+                var sqlState =
                     connection.Query<SqlState>(
                         "select s.Name, s.Reason, s.Data " +
                         "from HANGFIRE_STATE s inner join HANGFIRE_JOB j on j.StateId = s.Id " +
-                        "where j.Id = :jobId", 
+                        "where j.Id = :jobId",
                         new { jobId = jobId }).SingleOrDefault();
                 if (sqlState == null)
                 {
@@ -209,21 +212,24 @@ namespace Hangfire.Oracle
 
             _storage.UseConnection(connection =>
             {
-                connection.Execute(
-                    "INSERT INTO HANGFIRE_Server (Id, Data, LastHeartbeat) " +
-                    "VALUE (:id, :data, :heartbeat) " +
-                    "ON DUPLICATE KEY UPDATE Data = :data, LastHeartbeat = :heartbeat",
-                    new
+                connection.Execute(@"
+begin
+    update HANGFIRE_SERVER set Data = :data, LastHeartbeat = :heartbeat where Id = :id; 
+    if (sql%rowcount = 0) then
+        INSERT INTO HANGFIRE_SERVER (Id, Data, LastHeartbeat) VALUES (:id, :data, :heartbeat); 
+    end if;
+end;",
+                new
+                {
+                    id = serverId,
+                    data = JobHelper.ToJson(new ServerData
                     {
-                        id = serverId,
-                        data = JobHelper.ToJson(new ServerData
-                        {
-                            WorkerCount = context.WorkerCount,
-                            Queues = context.Queues,
-                            StartedAt = DateTime.UtcNow,
-                        }),
-                        heartbeat = DateTime.UtcNow
-                    });
+                        WorkerCount = context.WorkerCount,
+                        Queues = context.Queues,
+                        StartedAt = DateTime.UtcNow,
+                    }),
+                    heartbeat = DateTime.UtcNow
+                });
             });
         }
 
@@ -246,7 +252,7 @@ namespace Hangfire.Oracle
             _storage.UseConnection(connection =>
             {
                 connection.Execute(
-                    "update HANGFIRE_Server set LastHeartbeat = @now where Id = :id",
+                    "update HANGFIRE_Server set LastHeartbeat = :now where Id = :id",
                     new { now = DateTime.UtcNow, id = serverId });
             });
         }
@@ -261,8 +267,8 @@ namespace Hangfire.Oracle
             return
                 _storage.UseConnection(connection =>
                     connection.Execute(
-                        "delete from HANGFIRE_Server where LastHeartbeat < @timeOutAt",
-                        new {timeOutAt = DateTime.UtcNow.Add(timeOut.Negate())}));
+                        "delete from HANGFIRE_Server where LastHeartbeat < :timeOutAt",
+                        new { timeOutAt = DateTime.UtcNow.Add(timeOut.Negate()) }));
         }
 
         public override long GetSetCount(string key)
@@ -273,26 +279,25 @@ namespace Hangfire.Oracle
                 _storage.UseConnection(connection =>
                     connection.Query<int>(
                         "select count(Key) from HANGFIRE_SET where Key = :key",
-                        new {key = key}).First());
+                        new { key = key }).First());
         }
 
         public override List<string> GetRangeFromSet(string key, int startingFrom, int endingAt)
         {
             if (key == null) throw new ArgumentNullException("key");
-            
+
             return _storage.UseConnection(connection =>
                 connection
                     .Query<string>(@"
 select Value 
 from (
-	    select Value, @rownum := @rownum + 1 AS rank
-	    from HANGFIRE_SET,
-            (select @rownum := 0) r 
+	    select Value, rownum rank
+	    from HANGFIRE_SET
         where Key = :key
         order by Id
      ) ranked
-where ranked.rank between @startingFrom and @endingAt",
-                        new {key = key, startingFrom = startingFrom + 1, endingAt = endingAt + 1})
+where ranked.rank between :startingFrom and :endingAt",
+                        new { key = key, startingFrom = startingFrom + 1, endingAt = endingAt + 1 })
                     .ToList());
         }
 
@@ -305,7 +310,7 @@ where ranked.rank between @startingFrom and @endingAt",
                 {
                     var result = connection.Query<string>(
                         "select Value from HANGFIRE_SET where Key = :key",
-                        new {key});
+                        new { key });
 
                     return new HashSet<string>(result);
                 });
@@ -314,7 +319,7 @@ where ranked.rank between @startingFrom and @endingAt",
         public override string GetFirstByLowestScoreFromSet(string key, double fromScore, double toScore)
         {
             if (key == null) throw new ArgumentNullException("key");
-            if (toScore < fromScore) 
+            if (toScore < fromScore)
                 throw new ArgumentException("The `toScore` value must be higher or equal to the `fromScore` value.");
 
             return
@@ -322,10 +327,9 @@ where ranked.rank between @startingFrom and @endingAt",
                     connection.Query<string>(
                         "select Value " +
                         "from HANGFIRE_SET " +
-                        "where Key = :key and Score between :from and :to " +
-                        "order by Score " +
-                        "limit 1",
-                        new {key, from = fromScore, to = toScore})
+                        "where Key = :key and Score between :fromValue and :toValue and rownum = 1" +
+                        "order by Score",
+                        new { key, fromValue = fromScore, toValue = toScore })
                         .SingleOrDefault());
         }
 
@@ -334,13 +338,12 @@ where ranked.rank between @startingFrom and @endingAt",
             if (key == null) throw new ArgumentNullException("key");
 
             string query = @"
-select sum(s.Value) from (select sum(Value) as Value from HANGFIRE_COUNTER
-where Key = :key
-union all
-select Value from HANGFIRE_AGGREGATEDCOUNTER
-where Key = :key) as s";
+select sum(s.Value) from (
+  select sum(Value) VALUE from HANGFIRE_COUNTER where Key = :key
+  union all
+  select sum(Value) VALUE from HANGFIRE_AGGREGATEDCOUNTER where Key = :key)  s";
 
-            return 
+            return
                 _storage
                     .UseConnection(connection =>
                         connection.Query<long?>(query, new { key = key }).Single() ?? 0);
@@ -350,11 +353,11 @@ where Key = :key) as s";
         {
             if (key == null) throw new ArgumentNullException("key");
 
-            return 
+            return
                 _storage
-                    .UseConnection(connection => 
+                    .UseConnection(connection =>
                         connection.Query<long>(
-                            "select count(Id) from HANGFIRE_Hash where Key = :key", 
+                            "select count(Id) from HANGFIRE_Hash where Key = :key",
                             new { key = key }).Single());
         }
 
@@ -364,9 +367,9 @@ where Key = :key) as s";
 
             return _storage.UseConnection(connection =>
             {
-                var result = 
+                var result =
                     connection.Query<DateTime?>(
-                        "select min(ExpireAt) from HANGFIRE_Hash where Key = :key", 
+                        "select min(ExpireAt) from HANGFIRE_Hash where Key = :key",
                         new { key = key }).Single();
                 if (!result.HasValue) return TimeSpan.FromSeconds(-1);
 
@@ -378,11 +381,11 @@ where Key = :key) as s";
         {
             if (key == null) throw new ArgumentNullException("key");
 
-            return 
+            return
                 _storage
-                    .UseConnection(connection => 
+                    .UseConnection(connection =>
                         connection.Query<long>(
-                            "select count(Id) from HANGFIRE_List where Key = :key", 
+                            "select count(Id) from HANGFIRE_List where Key = :key",
                             new { key = key }).Single());
         }
 
@@ -392,9 +395,9 @@ where Key = :key) as s";
 
             return _storage.UseConnection(connection =>
             {
-                var result = 
+                var result =
                     connection.Query<DateTime?>(
-                        "select min(ExpireAt) from HANGFIRE_List where Key = :key", 
+                        "select min(ExpireAt) from HANGFIRE_List where Key = :key",
                         new { key = key }).Single();
                 if (!result.HasValue) return TimeSpan.FromSeconds(-1);
 
@@ -407,11 +410,11 @@ where Key = :key) as s";
             if (key == null) throw new ArgumentNullException("key");
             if (name == null) throw new ArgumentNullException("name");
 
-            return 
+            return
                 _storage
-                    .UseConnection(connection => 
+                    .UseConnection(connection =>
                         connection.Query<string>(
-                            "select Value from HANGFIRE_HASH where Key = :key and Field = :field", 
+                            "select Value from HANGFIRE_HASH where Key = :key and Field = :field",
                             new { key = key, field = name }).SingleOrDefault());
         }
 
@@ -431,7 +434,7 @@ where X.R between :startingFrom and :endingAt
                     .UseConnection(connection =>
                         connection.Query<string>(
                             query,
-                            new {key = key, startingFrom = startingFrom + 1, endingAt = endingAt + 1})
+                            new { key = key, startingFrom = startingFrom + 1, endingAt = endingAt + 1 })
                             .ToList());
         }
 
@@ -453,10 +456,10 @@ order by Id desc";
 
             return _storage.UseConnection(connection =>
             {
-                var result = 
+                var result =
                     connection
                         .Query<DateTime?>(
-                            "select min(ExpireAt) from HANGFIRE_SET where Key = :key", 
+                            "select min(ExpireAt) from HANGFIRE_SET where Key = :key",
                             new { key = key }).Single();
                 if (!result.HasValue) return TimeSpan.FromSeconds(-1);
 
@@ -477,11 +480,11 @@ order by Id desc";
 begin
 	update HANGFIRE_Hash set VALUE = :value where KEY = :key and FIELD = :field;
 	
-	if sql%rowcount = 0 then
-		insert into HANGFIRE_Hash (KEY, FIELD, VALUE) values (:key, :field, :value) 
+	if (sql%rowcount = 0) then
+		insert into HANGFIRE_Hash (KEY, FIELD, VALUE) values (:key, :field, :value);
 	end if;
 end;
-", 
+",
                         new { key = key, field = keyValuePair.Key, value = keyValuePair.Value });
                 }
             });
@@ -495,7 +498,7 @@ end;
             {
                 var result = connection.Query<SqlHash>(
                     "select Field, Value from HANGFIRE_Hash where Key = :key",
-                    new {key})
+                    new { key })
                     .ToDictionary(x => x.Field, x => x.Value);
 
                 return result.Count != 0 ? result : null;

@@ -134,26 +134,26 @@ namespace Hangfire.Oracle.Tests
                 Assert.NotEmpty(jobId);
 
                 var sqlJob = sql.Query("select * from HANGFIRE_JOB").Single();
-                Assert.Equal(jobId, sqlJob.Id.ToString());
-                Assert.Equal(createdAt, sqlJob.CreatedAt);
-                Assert.Equal(null, (int?)sqlJob.StateId);
-                Assert.Equal(null, (string)sqlJob.StateName);
+                Assert.Equal(jobId, sqlJob.ID.ToString());
+                Assert.Equal(createdAt, sqlJob.CREATEDAT);
+                Assert.Equal(null, (int?)sqlJob.STATEID);
+                Assert.Equal(null, (string)sqlJob.STATENAME);
 
-                var invocationData = JobHelper.FromJson<InvocationData>((string)sqlJob.InvocationData);
-                invocationData.Arguments = sqlJob.Arguments;
+                var invocationData = JobHelper.FromJson<InvocationData>((string)sqlJob.INVOCATIONDATA);
+                invocationData.Arguments = sqlJob.ARGUMENTS;
 
                 var job = invocationData.Deserialize();
                 Assert.Equal(typeof(OracleStorageConnectionTests), job.Type);
                 Assert.Equal("SampleMethod", job.Method.Name);
                 Assert.Equal("\"Hello\"", job.Arguments[0]);
 
-                Assert.True(createdAt.AddDays(1).AddMinutes(-1) < sqlJob.ExpireAt);
-                Assert.True(sqlJob.ExpireAt < createdAt.AddDays(1).AddMinutes(1));
+                Assert.True(createdAt.AddDays(1).AddMinutes(-1) < sqlJob.EXPIREAT);
+                Assert.True(sqlJob.EXPIREAT < createdAt.AddDays(1).AddMinutes(1));
 
                 var parameters = sql.Query(
                     "select * from HANGFIRE_JOBPARAMETER where JobId = :id",
                     new { id = jobId })
-                    .ToDictionary(x => (string)x.Name, x => (string)x.Value);
+                    .ToDictionary(x => (string)x.NAME, x => (string)x.VALUE);
 
                 Assert.Equal("Value1", parameters["Key1"]);
                 Assert.Equal("Value2", parameters["Key2"]);
@@ -234,10 +234,10 @@ declare
     jobid number(11);
     stateId number(11);
 begin
-    insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (' ', ' ', ' ', sysdate) returning Id into jobid;
+    insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (' ', ' ', ' ', sysdate) returning ID into jobid;
     insert into HANGFIRE_STATE (JobId, Name, CreatedAt) values (jobid, 'old-state', sysdate);
     insert into HANGFIRE_STATE (JobId, Name, Reason, Data, CreatedAt) values (jobid, :name, :reason, :data, sysdate) returning ID into stateId;
-    update HANGFIRE_JOB set StateId = @current_state_id;
+    update HANGFIRE_JOB set StateId = stateId;
     :jobid := jobid;
 end;";
 
@@ -278,7 +278,7 @@ begin
     insert into HANGFIRE_STATE (JobId, Name, CreatedAt) values (jobId, 'old-state', sysdate);
     insert into HANGFIRE_STATE (JobId, Name, Reason, Data, CreatedAt) values (jobId, :name, :reason, :data, sysdate) returning ID into stateId;
     update HANGFIRE_JOB set StateId = stateId;
-    :joinid := jobid;
+    :jobid := jobid;
 end;";
 
             UseConnections((sql, connection) =>
@@ -569,11 +569,11 @@ end;";
                 connection.AnnounceServer("server", context1);
 
                 var server = sql.Query("select * from HANGFIRE_SERVER").Single();
-                Assert.Equal("server", server.Id);
-                Assert.True(((string)server.Data).StartsWith(
+                Assert.Equal("server", server.ID);
+                Assert.True(((string)server.DATA).StartsWith(
                     "{\"WorkerCount\":4,\"Queues\":[\"critical\",\"default\"],\"StartedAt\":"),
                     server.Data);
-                Assert.NotNull(server.LastHeartbeat);
+                Assert.NotNull(server.LASTHEARTBEAT);
 
                 var context2 = new ServerContext
                 {
@@ -582,8 +582,8 @@ end;";
                 };
                 connection.AnnounceServer("server", context2);
                 var sameServer = sql.Query("select * from HANGFIRE_SERVER").Single();
-                Assert.Equal("server", sameServer.Id);
-                Assert.Contains("1000", sameServer.Data);
+                Assert.Equal("server", sameServer.ID);
+                Assert.Contains("1000", sameServer.DATA);
             });
         }
 
@@ -626,8 +626,8 @@ end;";
         {
             const string arrangeSql = @"
 begin
-  insert into HANGFIRE_SERVER (ID, DATA, LASTHEARTBEAT) values ('server1', ' ', '2012-12-12 12:12:12');
-  insert into HANGFIRE_SERVER (ID, DATA, LASTHEARTBEAT) values ('server1', ' ', '2012-12-12 12:12:12');
+  insert into HANGFIRE_SERVER (ID, DATA, LASTHEARTBEAT) values ('server1', ' ', to_timestamp('2012-12-12 12:12:12',  'yyyy-MM-dd HH24:MI:SS'));
+  insert into HANGFIRE_SERVER (ID, DATA, LASTHEARTBEAT) values ('server2', ' ', to_timestamp('2012-12-12 12:12:12', 'yyyy-MM-dd HH24:MI:SS'));
 end;";
 
             UseConnections((sql, connection) =>
@@ -637,7 +637,7 @@ end;";
                 connection.Heartbeat("server1");
 
                 var servers = sql.Query("select * from HANGFIRE_SERVER")
-                    .ToDictionary(x => (string)x.Id, x => (DateTime)x.LastHeartbeat);
+                    .ToDictionary(x => (string)x.ID, x => (DateTime)x.LASTHEARTBEAT);
 
                 Assert.NotEqual(2012, servers["server1"].Year);
                 Assert.Equal(2012, servers["server2"].Year);
@@ -669,7 +669,7 @@ end;";
                 connection.RemoveTimedOutServers(TimeSpan.FromHours(15));
 
                 var liveServer = sql.Query("select * from HANGFIRE_SERVER").Single();
-                Assert.Equal("server2", liveServer.Id);
+                Assert.Equal("server2", liveServer.ID);
             });
         }
 
@@ -755,7 +755,7 @@ end;";
                 var result = sql.Query(
                     "select * from HANGFIRE_HASH where Key = :key",
                     new { key = "some-hash" })
-                    .ToDictionary(x => (string)x.Field, x => (string)x.Value);
+                    .ToDictionary(x => (string)x.FIELD, x => (string)x.VALUE);
 
                 Assert.Equal("Value1", result["Key1"]);
                 Assert.Equal("Value2", result["Key2"]);

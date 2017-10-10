@@ -32,7 +32,7 @@ namespace Hangfire.Oracle.Tests.Monitoring
             _connection.Open();
 
             var persistentJobQueueMonitoringApiMock = new Mock<IPersistentJobQueueMonitoringApi>();
-            persistentJobQueueMonitoringApiMock.Setup(m => m.GetQueues()).Returns(new[] {"default"});
+            persistentJobQueueMonitoringApiMock.Setup(m => m.GetQueues()).Returns(new[] { "default" });
 
             var defaultProviderMock = new Mock<IPersistentJobQueueProvider>();
             defaultProviderMock.Setup(m => m.GetJobQueueMonitoringApi())
@@ -181,7 +181,7 @@ end;");
         {
             const int expectedStatsDeletedCount = 7;
 
-             StatisticsDto result = null;
+            StatisticsDto result = null;
             _storage.UseConnection(connection =>
             {
                 connection.Execute(@"begin
@@ -200,7 +200,7 @@ end;");
         public void GetStatistics_ShouldReturnRecurringCount()
         {
             const int expectedRecurringCount = 1;
-            
+
             StatisticsDto result = null;
             _storage.UseConnection(connection =>
             {
@@ -275,7 +275,7 @@ end;", param);
             var properties = new Dictionary<string, string>();
             properties["CurrentUICulture"] = "en-US";
             properties["CurrentCulture"] = "lt-LT";
-           
+
             JobDetailsDto result = null;
 
             _storage.UseConnection(connection =>
@@ -315,10 +315,12 @@ end;", param);
             {
 
                 var param = new DynamicParameters();
-                param.Add(name: "createdAt", value: _createdAt, direction: System.Data.ParameterDirection.Input);
-                param.Add(name: "invocationData", value: _invocationData, direction: System.Data.ParameterDirection.Input);
-                param.Add(name: "arguments", value: _arguments, direction: System.Data.ParameterDirection.Input);
-                param.Add(name: "expireAt", value: _expireAt, direction: System.Data.ParameterDirection.Input);
+                param.Add("createdAt", _createdAt, direction: System.Data.ParameterDirection.Input);
+                param.Add("invocationData", _invocationData, direction: System.Data.ParameterDirection.Input);
+                param.Add("arguments", _arguments, direction: System.Data.ParameterDirection.Input);
+                param.Add("expireAt", _expireAt, direction: System.Data.ParameterDirection.Input);
+                param.Add("jobStateName", jobStateName, direction: System.Data.ParameterDirection.Input);
+                param.Add("stateData", stateData, direction: System.Data.ParameterDirection.Input);
                 param.Add(name: "jobid", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Output);
 
                 connection.Execute(@"

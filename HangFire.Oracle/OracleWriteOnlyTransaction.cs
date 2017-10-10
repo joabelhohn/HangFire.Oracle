@@ -8,6 +8,7 @@ using Hangfire.Logging;
 using Hangfire.States;
 using Hangfire.Storage;
 using Oracle.ManagedDataAccess.Client;
+using Hangfire.Oracle.Utils;
 
 namespace Hangfire.Oracle
 {
@@ -29,25 +30,25 @@ namespace Hangfire.Oracle
 
         public override void ExpireJob(string jobId, TimeSpan expireIn)
         {
-            Logger.TraceFormat("ExpireJob jobId={0}",jobId);
+            Logger.TraceFormat("ExpireJob jobId={0}", jobId);
 
             AcquireJobLock();
 
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
                     "update HANGFIRE_JOB set ExpireAt = :expireAt where Id = :id",
                     new { expireAt = DateTime.UtcNow.Add(expireIn), id = jobId }));
         }
-        
+
         public override void PersistJob(string jobId)
         {
             Logger.TraceFormat("PersistJob jobId={0}", jobId);
 
             AcquireJobLock();
 
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_JOB set ExpireAt is NULL where Id = :id",
+                    "update HANGFIRE_JOB set ExpireAt = NULL where Id = :id",
                     new { id = jobId }));
         }
 
@@ -59,10 +60,10 @@ namespace Hangfire.Oracle
             AcquireJobLock();
             QueueCommand(x => x.Execute(@"
 declare
-    stateId number(11);
+    stateid number(11);
 begin
-    insert into HANGFIRE_STATE (JobId, Name, Reason, CreatedAt, Data) values (:jobId, :name, :reason, :createdAt, :data) returning ID into stateId;
-    update HANGFIRE_JOB set stateId = stateId, StateName = :name where Id = :id;
+    insert into HANGFIRE_STATE (JobId, Name, Reason, CreatedAt, Data) values (:jobId, :name, :reason, :createdAt, :data) returning ID into stateid;
+    update HANGFIRE_JOB set stateid = stateId, StateName = :name where Id = :id;
 end;",
                 new
                 {
@@ -73,6 +74,7 @@ end;",
                     data = JobHelper.ToJson(state.SerializeData()),
                     id = jobId
                 }));
+
         }
 
         public override void AddJobState(string jobId, IState state)
@@ -108,11 +110,11 @@ end;",
             Logger.TraceFormat("IncrementCounter key={0}", key);
 
             AcquireCounterLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
                     "insert into HANGFIRE_COUNTER (KEY, VALUE) values (:key, :value)",
                     new { key, value = +1 }));
-            
+
         }
 
 
@@ -121,7 +123,7 @@ end;",
             Logger.TraceFormat("IncrementCounter key={0}, expireIn={1}", key, expireIn);
 
             AcquireCounterLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
                     "insert into HANGFIRE_COUNTER (KEY, VALUE, ExpireAt) values (:key, :value, :expireAt)",
                     new { key, value = +1, expireAt = DateTime.UtcNow.Add(expireIn) }));
@@ -132,7 +134,7 @@ end;",
             Logger.TraceFormat("DecrementCounter key={0}", key);
 
             AcquireCounterLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
                     "insert into HANGFIRE_COUNTER (KEY, VALUE) values (:key, :value)",
                     new { key, value = -1 }));
@@ -143,7 +145,7 @@ end;",
             Logger.TraceFormat("DecrementCounter key={0} expireIn={1}", key, expireIn);
 
             AcquireCounterLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
                     "insert into HANGFIRE_COUNTER (KEY, VALUE, EXPIREAT) values (:key, :value, :expireAt)",
                     new { key, value = -1, expireAt = DateTime.UtcNow.Add(expireIn) }));
@@ -159,12 +161,16 @@ end;",
             Logger.TraceFormat("AddToSet key={0} value={1}", key, value);
 
             AcquireSetLock();
-            //TODO
-            QueueCommand(x => x.Execute(
-                "INSERT INTO HANGFIRE_SET (KEY, VALUE, Score) " +
-                "VALUES (@Key, @Value, @Score) " +
-                "ON DUPLICATE KEY UPDATE `Score` = @Score",
-                new { key, value, score }));
+            var sql = @"
+begin
+	update HANGFIRE_SET set Score = :score where KEY = :key and VALUE = :value;
+	
+	if (sql%rowcount = 0) then
+		INSERT INTO HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, :score);
+	end if;
+end;
+";
+            QueueCommand(x => x.Execute(sql, new { key, value, score }));
         }
 
         public override void AddRangeToSet(string key, IList<string> items)
@@ -175,9 +181,9 @@ end;",
             if (items == null) throw new ArgumentNullException("items");
 
             AcquireSetLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)", 
+                    "insert into HANGFIRE_SET (KEY, VALUE, Score) values (:key, :value, 0.0)",
                     items.Select(value => new { key = key, value = value }).ToList()));
         }
 
@@ -199,9 +205,9 @@ end;",
             if (key == null) throw new ArgumentNullException("key");
 
             AcquireSetLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_SET set ExpireAt = :expireAt where Key = :key", 
+                    "update HANGFIRE_SET set ExpireAt = :expireAt where Key = :key",
                     new { key = key, expireAt = DateTime.UtcNow.Add(expireIn) }));
         }
 
@@ -223,9 +229,9 @@ end;",
             Logger.TraceFormat("ExpireList key={0} expirein={1}", key, expireIn);
 
             AcquireListLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_List set ExpireAt = :expireAt where Key = :key", 
+                    "update HANGFIRE_List set ExpireAt = :expireAt where KEY = :key",
                     new { key = key, expireAt = DateTime.UtcNow.Add(expireIn) }));
         }
 
@@ -234,9 +240,14 @@ end;",
             Logger.TraceFormat("RemoveFromList key={0} value={1}", key, value);
 
             AcquireListLock();
-            QueueCommand(x => x.Execute(
-                "delete from HANGFIRE_List where Key = :key and Value = :value",
-                new { key, value }));
+
+            var param = new OracleDynamicParameters();
+            param.Add("key", key);
+            param.Add("value", value, dbType: OracleDbType.Clob);
+
+
+            QueueCommand(x => 
+                x.Execute("delete from HANGFIRE_List where Key = :key and Value like :value", param));
         }
 
         public override void TrimList(string key, int keepStartingFrom, int keepEndingAt)
@@ -244,12 +255,12 @@ end;",
             Logger.TraceFormat("TrimList key={0} from={1} to={2}", key, keepStartingFrom, keepEndingAt);
 
             AcquireListLock();
-            
+
             QueueCommand(x => x.Execute(
                 @"delete from HANGFIRE_LIST where ID in (
 select X.Id from (select Id, rownum R from HANGFIRE_LIST where KEY = :key) X
 where X.R not between :startValue and :endValue)",
-                new { key = key, startValeu = keepStartingFrom + 1, endValeu = keepEndingAt + 1 }));
+                new { key = key, startValue = keepStartingFrom + 1, endValue = keepEndingAt + 1 }));
         }
 
         public override void PersistHash(string key)
@@ -260,9 +271,9 @@ where X.R not between :startValue and :endValue)",
 
             AcquireHashLock();
 
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_Hash set ExpireAt is null where Key = :key", new { key = key }));
+                    "update HANGFIRE_Hash set ExpireAt = null where Key = :key", new { key = key }));
         }
 
         public override void PersistSet(string key)
@@ -273,9 +284,9 @@ where X.R not between :startValue and :endValue)",
 
             AcquireSetLock();
 
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_SET set ExpireAt is null where Key = :key", new { key = key }));
+                    "update HANGFIRE_SET set ExpireAt = null where Key = :key", new { key = key }));
         }
 
         public override void RemoveSet(string key)
@@ -286,7 +297,7 @@ where X.R not between :startValue and :endValue)",
 
             AcquireSetLock();
             //TODO
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
                     "delete from HANGFIRE_SET where Key = :key", new { key = key }));
         }
@@ -298,9 +309,9 @@ where X.R not between :startValue and :endValue)",
             if (key == null) throw new ArgumentNullException("key");
 
             AcquireListLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_List set ExpireAt is null where Key = :key", new { key = key }));
+                    "update HANGFIRE_List set ExpireAt = null where Key = :key", new { key = key }));
         }
 
         public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
@@ -309,14 +320,17 @@ where X.R not between :startValue and :endValue)",
 
             if (key == null) throw new ArgumentNullException("key");
             if (keyValuePairs == null) throw new ArgumentNullException("keyValuePairs");
-
+            var sql = @"
+begin
+	update HANGFIRE_Hash set VALUE = :value where KEY = :key and FIELD = :field;
+	
+	if (sql%rowcount = 0) then
+		insert into HANGFIRE_Hash (KEY, FIELD, VALUE) values (:key, :field, :value);
+	end if;
+end;
+";
             AcquireHashLock();
-            QueueCommand(x => 
-                x.Execute(
-                    "insert into HANGFIRE_Hash (Key, Field, Value) " +
-                    "values (:key, :field, :value) " +
-                    "on duplicate key update Value = :value",
-                    keyValuePairs.Select(y => new { key = key, field = y.Key, value = y.Value })));
+            QueueCommand(x => x.Execute(sql, keyValuePairs.Select(y => new { key = key, field = y.Key, value = y.Value })));
         }
 
         public override void ExpireHash(string key, TimeSpan expireIn)
@@ -326,9 +340,9 @@ where X.R not between :startValue and :endValue)",
             if (key == null) throw new ArgumentNullException("key");
 
             AcquireHashLock();
-            QueueCommand(x => 
+            QueueCommand(x =>
                 x.Execute(
-                    "update HANGFIRE_Hash set ExpireAt = :expireAt where Key = :key", 
+                    "update HANGFIRE_Hash set ExpireAt = :expireAt where Key = :key",
                     new { key = key, expireAt = DateTime.UtcNow.Add(expireIn) }));
         }
 
@@ -360,7 +374,7 @@ where X.R not between :startValue and :endValue)",
         {
             _commandQueue.Enqueue(action);
         }
-        
+
         private void AcquireJobLock()
         {
             AcquireLock(String.Format("Job"));
@@ -370,7 +384,7 @@ where X.R not between :startValue and :endValue)",
         {
             AcquireLock(String.Format("Set"));
         }
-        
+
         private void AcquireListLock()
         {
             AcquireLock(String.Format("List"));
@@ -380,7 +394,7 @@ where X.R not between :startValue and :endValue)",
         {
             AcquireLock(String.Format("Hash"));
         }
-        
+
         private void AcquireStateLock()
         {
             AcquireLock(String.Format("State"));

@@ -84,7 +84,7 @@ begin
     
 	DELETE FROM HANGFIRE_COUNTER WHERE rownum <= :count;
 
-	COMMIT;
+    COMMIT;
 end;
 ";
         }
