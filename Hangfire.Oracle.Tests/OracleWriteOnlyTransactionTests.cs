@@ -110,9 +110,9 @@ namespace Hangfire.Oracle.Tests
                 state.Setup(x => x.Reason).Returns("Reason");
                 state.Setup(x => x.SerializeData())
                     .Returns(new Dictionary<string, string> { { "Name", "Value" } });
-
+               
                 Commit(sql, x => x.SetJobState(jobId, state.Object));
-
+                
                 var job = GetTestJob(sql, jobId);
                 Assert.Equal("State", job.StateName);
                 Assert.NotNull(job.StateId);

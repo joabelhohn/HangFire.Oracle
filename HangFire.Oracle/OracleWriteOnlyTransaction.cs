@@ -60,10 +60,10 @@ namespace Hangfire.Oracle
             AcquireJobLock();
             QueueCommand(x => x.Execute(@"
 declare
-    stateid number(11);
+    new_stateid number(11);
 begin
-    insert into HANGFIRE_STATE (JobId, Name, Reason, CreatedAt, Data) values (:jobId, :name, :reason, :createdAt, :data) returning ID into stateid;
-    update HANGFIRE_JOB set stateid = stateId, StateName = :name where Id = :id;
+    insert into HANGFIRE_STATE (JobId, Name, Reason, CreatedAt, Data) values (:jobId, :name, :reason, :createdAt, :data) returning ID into new_stateid;
+    update HANGFIRE_JOB set stateid = new_stateid, StateName = :name where Id = :id;
 end;",
                 new
                 {

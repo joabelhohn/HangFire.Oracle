@@ -50,8 +50,7 @@ namespace Hangfire.Oracle.Tests
             //{
             //    connection.Execute(recreateDatabaseSql);
             //}
-            using (var connection = new OracleConnection(
-                ConnectionUtils.GetMasterConnectionString()))
+            using (var connection = new OracleConnection(ConnectionUtils.GetMasterConnectionString()))
             {
                 connection.Execute(@"
 begin

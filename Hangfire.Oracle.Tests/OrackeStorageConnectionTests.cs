@@ -180,7 +180,7 @@ namespace Hangfire.Oracle.Tests
         [Fact, CleanDatabase]
         public void GetJobData_ReturnsResult_WhenJobExists()
         {
-            const string arrangeSql = @"insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (:invocationData, :arguments, :stateName, sysdate) returning ID into :jobid";
+            const string arrangeSql = @"insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (:invocationData, :arguments, :stateName, :createdat) returning ID into :jobid";
 
             UseConnections((sql, connection) =>
             {
@@ -191,6 +191,7 @@ namespace Hangfire.Oracle.Tests
                 param.Add(name: "invocationData", value: JobHelper.ToJson(InvocationData.Serialize(job)), direction: System.Data.ParameterDirection.Input);
                 param.Add(name: "stateName", value: "Succeeded", direction: System.Data.ParameterDirection.Input);
                 param.Add(name: "arguments", value: "['Arguments']", direction: System.Data.ParameterDirection.Input);
+                param.Add(name: "createdat", value: DateTime.UtcNow , direction: System.Data.ParameterDirection.Input);
                 param.Add(name: "jobid", dbType: System.Data.DbType.Int32, direction: System.Data.ParameterDirection.Output);
                 sql.Execute(arrangeSql, param);
                 var id = param.Get<int>("jobid");
@@ -231,14 +232,14 @@ namespace Hangfire.Oracle.Tests
         {
             const string arrangeSql = @"
 declare
-    jobid number(11);
-    stateId number(11);
+    new_jobid number(11);
+    new_stateId number(11);
 begin
-    insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (' ', ' ', ' ', sysdate) returning ID into jobid;
-    insert into HANGFIRE_STATE (JobId, Name, CreatedAt) values (jobid, 'old-state', sysdate);
-    insert into HANGFIRE_STATE (JobId, Name, Reason, Data, CreatedAt) values (jobid, :name, :reason, :data, sysdate) returning ID into stateId;
-    update HANGFIRE_JOB set StateId = stateId;
-    :jobid := jobid;
+    insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (' ', ' ', ' ', sysdate) returning ID into new_jobid;
+    insert into HANGFIRE_STATE (JobId, Name, CreatedAt) values (new_jobid, 'old-state', sysdate);
+    insert into HANGFIRE_STATE (JobId, Name, Reason, Data, CreatedAt) values (new_jobid, :name, :reason, :data, sysdate) returning ID into new_stateId;
+    update HANGFIRE_JOB set StateId = new_stateId;
+    :jobid := new_jobid;
 end;";
 
             UseConnections((sql, connection) =>
@@ -271,14 +272,14 @@ end;";
         {
             const string arrangeSql = @"
 declare
-    jobid number(11);
-    stateId number(11);
+    new_jobid number(11);
+    new_stateId number(11);
 begin
-    insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (' ', ' ', ' ', sysdate) returning Id into jobid;
-    insert into HANGFIRE_STATE (JobId, Name, CreatedAt) values (jobId, 'old-state', sysdate);
-    insert into HANGFIRE_STATE (JobId, Name, Reason, Data, CreatedAt) values (jobId, :name, :reason, :data, sysdate) returning ID into stateId;
-    update HANGFIRE_JOB set StateId = stateId;
-    :jobid := jobid;
+    insert into HANGFIRE_JOB (INVOCATIONDATA, ARGUMENTS, STATENAME, CREATEDAT) values (' ', ' ', ' ', sysdate) returning Id into new_jobid;
+    insert into HANGFIRE_STATE (JobId, Name, CreatedAt) values (new_jobId, 'old-state', sysdate);
+    insert into HANGFIRE_STATE (JobId, Name, Reason, Data, CreatedAt) values (new_jobId, :name, :reason, :data, sysdate) returning ID into new_stateId;
+    update HANGFIRE_JOB set StateId = new_stateId;
+    :jobid := new_jobid;
 end;";
 
             UseConnections((sql, connection) =>
@@ -368,7 +369,7 @@ end;";
                     "select * from HANGFIRE_JOBParameter where JobId = :id and Name = :name",
                     new { id = jobId, name = "Name" }).Single();
 
-                Assert.Equal("Value", parameter.Value);
+                Assert.Equal("Value", parameter.VALUE);
             });
         }
 
@@ -392,7 +393,7 @@ end;";
                     "select * from HANGFIRE_JOBParameter where JobId = :id and Name = :name",
                     new { id = jobId, name = "Name" }).Single();
 
-                Assert.Equal("AnotherValue", parameter.Value);
+                Assert.Equal("AnotherValue", parameter.VALUE);
             });
         }
 
