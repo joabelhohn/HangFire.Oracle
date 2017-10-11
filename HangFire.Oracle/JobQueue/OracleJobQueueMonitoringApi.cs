@@ -27,7 +27,7 @@ namespace Hangfire.Oracle.JobQueue
                 {
                     var result = _storage.UseConnection(connection =>
                     {
-                        return connection.Query("select distinct(Queue) from HANGFIRE_JOBQUEUE").Select(x => (string)x.Queue).ToList();
+                        return connection.Query("select distinct(Queue) \"Queue\" from HANGFIRE_JOBQUEUE").Select(x => (string)x.Queue).ToList();
                     });
 
                     _queuesCache = result;

@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>Hangfire.OracleStorage</id>
+    <version>0.0.0.5</version>
+    <title>Hangfire Oracle Storage</title>
+    <authors>Joabel Hohn</authors>
+    <owners>Infogen Sistemas LTDA</owners>
+    <licenseUrl>https://github.com/arnoldasgudas/Hangfire.MySqlStorage/blob/master/License.md</licenseUrl>
+    <projectUrl>https://github.com/arnoldasgudas/Hangfire.MySqlStorage</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Hangfire Oracle Storage</description>
+    <releaseNotes></releaseNotes>
+    <copyright>Copyright 2015</copyright>
+    <tags>Hangfire Oracle Hangfire.Oracle</tags>
+  </metadata>
+</package>

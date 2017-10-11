@@ -337,7 +337,7 @@ select sum(x.VALUE) from (
         private long GetNumberOfJobsByStateName(OracleConnection connection, string stateName)
         {
             var sqlQuery = _jobListLimit.HasValue
-                ? "select count(j.Id) from (select Id from HANGFIRE_JOB where StateName = :state and rownum < :limit) as j"
+                ? "select count(Id) from HANGFIRE_JOB where StateName = :state and rownum <= :limit"
                 : "select count(Id) from HANGFIRE_JOB where StateName = :state";
 
             var count = connection.Query<int>(
@@ -365,13 +365,12 @@ select sum(x.VALUE) from (
             //TODO
             string jobsSql =
 @"select * from (
-  select j.*, s.Reason as StateReason, s.Data as StateData, rownum := rownum + 1 AS rank
+  select j.*, s.Reason as StateReason, s.Data as StateData, rownum R
   from HANGFIRE_JOB j
-    cross join (SELECT @rownum := 0) r
   left join HANGFIRE_STATE s on j.StateId = s.Id
   where j.StateName = :stateName
   order by j.Id desc
-) as j where j.rank between :startValue and :endValue ";
+) j where j.R between :startValue and :endValue ";
 
             var jobs = 
                 connection.Query<SqlJob>(
@@ -440,9 +439,9 @@ select sum(x.VALUE) from (
             IDictionary<string, DateTime> keyMaps)
         {
             var valuesMap = connection.Query(
-                "select KEY, VALUE as Count from HANGFIRE_AGGREGATEDCOUNTER where Key in :keys",
+                "select KEY , VALUE as Count from HANGFIRE_AGGREGATEDCOUNTER where Key in :keys",
                 new { keys = keyMaps.Keys })
-                .ToDictionary(x => (string)x.Key, x => (long)x.Count);
+                .ToDictionary(x => (string)x.KEY, x => (long)x.COUNT);
 
             foreach (var key in keyMaps.Keys)
             {

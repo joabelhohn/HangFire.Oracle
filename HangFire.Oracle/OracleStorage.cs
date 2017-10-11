@@ -38,13 +38,11 @@ namespace Hangfire.Oracle
 
             if (IsConnectionString(nameOrConnectionString))
             {
-                _connectionString = ApplyAllowUserVariablesProperty(nameOrConnectionString);
+                _connectionString = nameOrConnectionString;
             }
             else if (IsConnectionStringInConfiguration(nameOrConnectionString))
             {
-                _connectionString = 
-                    ApplyAllowUserVariablesProperty(
-                        ConfigurationManager.ConnectionStrings[nameOrConnectionString].ConnectionString);
+                _connectionString = ConfigurationManager.ConnectionStrings[nameOrConnectionString].ConnectionString;
             }
             else
             {
@@ -65,17 +63,7 @@ namespace Hangfire.Oracle
 
             InitializeQueueProviders();
         }
-
-        private string ApplyAllowUserVariablesProperty(string connectionString)
-        {
-            if (connectionString.ToLower().Contains("allow user variables"))
-            {
-                return connectionString;
-            }
-
-            return connectionString + ";Allow User Variables=True;";
-        }
-
+        
         internal OracleStorage(OracleConnection existingConnection)
         {
             if (existingConnection == null) throw new ArgumentNullException("existingConnection");
@@ -195,7 +183,7 @@ namespace Hangfire.Oracle
         {
             var trnScope = isolationLevel != null
                 ? new TransactionScope(TransactionScopeOption.Required,
-                    new TransactionOptions { IsolationLevel = isolationLevel.Value, Timeout = _options.TransactionTimeout })
+                    new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted, Timeout = _options.TransactionTimeout })
                 : new TransactionScope();
             return trnScope;
         }
